@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ACM sample
+
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------#
+Parameters:
+  Route53DomainName:
+    Type: String
+
+Resources:
+  # ------------------------------------------------------------#
+  #  AWS CertificateManager
+  # ------------------------------------------------------------#
+  CertificateManager:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub ${Route53DomainName}
+      DomainValidationOptions:
+        - DomainName: !Sub ${Route53DomainName}
+          HostedZoneId: !Ref Route53HostedZone
+      ValidationMethod: DNS
+
+  # ------------------------------------------------------------#
+  #  Route 53
+  # ------------------------------------------------------------#
+  Route53HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Sub ${Route53DomainName}
