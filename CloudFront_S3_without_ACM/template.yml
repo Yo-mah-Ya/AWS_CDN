@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CDN sample
+
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------#
+
+Resources:
+  # ------------------------------------------------------------#
+  #  CloudFront
+  # ------------------------------------------------------------#
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub access-identity-${S3Bucket}
+
+  # Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        # Origin Settings
+        Origins:
+          - # DomainName: !GetAtt S3Bucket.DomainName
+            # Under the condition that Bucket region is not us-east-1 and does not pass 24 hours after creating it, Give DomainName Bucket region
+            DomainName: !Sub ${S3Bucket}.s3-${AWS::Region}.amazonaws.com
+            # Use this Id to specify the TargetOriginId in a CacheBehavior or DefaultCacheBehavior.
+            Id: !Sub S3-${S3Bucket}
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+        DefaultRootObject: index.html
+        # Default Cache Behavior Settings
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub S3-${S3Bucket}
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          SmoothStreaming: false
+          Compress: false
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+        Enabled: true
+        # Distribution Settings
+        PriceClass: PriceClass_All
+        HttpVersion: http2
+        IPV6Enabled: true
+
+  # ------------------------------------------------------------#
+  #  S3 Bucket
+  # ------------------------------------------------------------#
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: your-bucket-name-here
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument: !Sub |-
+        {
+            "Version": "2008-10-17",
+            "Id": "PolicyForCloudFrontPrivateContent",
+            "Statement": [
+                {
+                    "Sid": "1",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "CanonicalUser": "${CloudFrontOriginAccessIdentity.S3CanonicalUserId}"
+                    },
+                    "Action": "s3:GetObject",
+                    "Resource": "arn:aws:s3:::${S3Bucket}/index.html"
+                }
+            ]
+        }
